@@ -1,8 +1,13 @@
 package efs.task.reflection;
 
 import java.lang.annotation.Annotation;
-import java.util.Collection;
-import java.util.Collections;
+import java.lang.reflect.Constructor;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+
+
 
 public class ClassInspector {
 
@@ -18,7 +23,11 @@ public class ClassInspector {
   public static Collection<String> getAnnotatedFields(final Class<?> type,
       final Class<? extends Annotation> annotation) {
     //TODO usuń zawartość tej metody i umieść tutaj swoje rozwiązanie
-    return Collections.emptyList();
+    return Stream.of(type.getDeclaredFields())
+            .filter(x -> x.isAnnotationPresent(annotation))
+            .map(java.lang.reflect.Field::getName)
+            .distinct()
+            .collect(Collectors.toList());
   }
 
   /**
@@ -32,7 +41,16 @@ public class ClassInspector {
    */
   public static Collection<String> getAllDeclaredMethods(final Class<?> type) {
     //TODO usuń zawartość tej metody i umieść tutaj swoje rozwiązanie
-    return Collections.emptyList();
+    Set<String> result = Stream.of(type.getDeclaredMethods())
+            .map(java.lang.reflect.Method::getName).collect(Collectors.toSet());
+
+    for(Class<?> x : type.getInterfaces())
+    {
+      Stream.of(x.getDeclaredMethods())
+              .map(java.lang.reflect.Method::getName)
+              .forEach(result::add);
+    }
+    return new ArrayList<>(result);
   }
 
   /**
@@ -51,6 +69,20 @@ public class ClassInspector {
    */
   public static <T> T createInstance(final Class<T> type, final Object... args) throws Exception {
     //TODO usuń zawartość tej metody i umieść tutaj swoje rozwiązanie
-    return null;
+    Optional<Constructor<?>> construct = Stream.of(type.getDeclaredConstructors())
+            .filter(x -> x.getParameterCount() == args.length
+                    && IntStream.range(0, args.length)
+                    .allMatch(i -> x.getParameterTypes()[i].isInstance(args[i]))
+            )
+            .findFirst();
+    if (construct.isPresent())
+    {
+      construct.get().setAccessible(true);
+      return type.cast(construct.get().newInstance(args));
+    }
+    else
+    {
+      throw new NoSuchElementException("Nie znaleziono odpowiedniego konstruktora!");
+    }
   }
 }
